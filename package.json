@@ -1,0 +1,31 @@
+{
+  "name": "attendance-barcode-scanner",
+  "version": "22.0.1",
+  "description": "attendance barcode scanner",
+  "main": "src/index.ts",
+  "scripts": {
+    "barcode": "nodemon --exec py -3 src/barcode.py",
+    "server": "nodemon src/index.ts",
+    "dev": "concurrently --kill-others \"npm run barcode\" \"npm run server\""
+  },
+  "author": "JackOutTheBox124",
+  "license": "MIT",
+  "dependencies": {
+    "@sequelize/core": "^7.0.0-alpha.10",
+    "express": "^4.18.2",
+    "mysql": "^2.18.1",
+    "mysql2": "^2.3.3",
+    "sequelize": "^6.25.8",
+    "sqlite3": "^5.1.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.14",
+    "@typescript-eslint/eslint-plugin": "^5.44.0",
+    "@typescript-eslint/parser": "^5.44.0",
+    "concurrently": "^7.6.0",
+    "eslint": "^8.28.0",
+    "nodemon": "^2.0.20",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.3"
+  }
+}
