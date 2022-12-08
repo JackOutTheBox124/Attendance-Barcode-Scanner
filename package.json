@@ -6,13 +6,15 @@
   "scripts": {
     "barcode": "nodemon --exec py -3 src/barcode.py",
     "server": "nodemon src/index.ts",
-    "dev": "concurrently --kill-others \"npm run barcode\" \"npm run server\""
+    "dev": "concurrently --kill-others \"npm run barcode\" \"npm run server\"",
+    "build": "tsc"
   },
   "author": "JackOutTheBox124",
   "license": "MIT",
   "dependencies": {
     "@sequelize/core": "^7.0.0-alpha.10",
     "express": "^4.18.2",
+    "google-spreadsheet": "^3.3.0",
     "mysql": "^2.18.1",
     "mysql2": "^2.3.3",
     "sequelize": "^6.25.8",
