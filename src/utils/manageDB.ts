@@ -44,7 +44,6 @@ export function updateTimestamp(studentID: number) {
     else if(student!.lastLogin && student!.lastLogin !== 0) {
       const logIn: number = student!.lastLogin;
       const parsedJSON = JSON.parse(student!.timestamps);
-      console.log(parsedJSON);
       parsedJSON.push(
         {
           "log_in": logIn,

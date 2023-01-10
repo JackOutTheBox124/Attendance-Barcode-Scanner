@@ -1,9 +1,4 @@
-node_modules
-venv
 src/constants.ts
-py/__pycache__
-.eslintrc.json
-
-export.csv
-test.csv
-test.json
+node_modules
+.idea/
+target
