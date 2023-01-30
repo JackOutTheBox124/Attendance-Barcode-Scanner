@@ -14,7 +14,7 @@ export async function timestampsToDailyMinutes(studentID: number) {
 
     tempArr.push(
       {
-        date: `${logInTime.getFullYear()}-${logInTime.getMonth() + 1}-${logInTime.getDate()}`,
+        date: `${logInTime.getFullYear()}-${logInTime.getMonth() + 1}-${logInTime.getDate().toString()/*.padStart(2, '0')*/}`,
         minutes: (logOutTime.getTime() - logInTime.getTime()) / 60000
       }
     );

@@ -10,6 +10,11 @@ export const sequelize = new Sequelize(constants.DB_DATABASE, constants.DB_USERN
   host: constants.DB_HOST,
   // Use the port specified in constants for the connection.
   port: constants.DB_PORT,
+  dialectOptions: {
+    // Use socketPath to connect to the database if the host is localhost.
+    // socketPath: "/etc/mysql/my.cnf",
+    // socketPath: constants.DB_HOST === "localhost" ? constants.DB_SOCKET_PATH : undefined,
+  }
 });
 
 // Define the Student model that extends Model from Sequelize.

@@ -1,4 +1,4 @@
-import {GoogleSpreadsheet, GoogleSpreadsheetWorksheet} from "google-spreadsheet";
+import {GoogleSpreadsheet, GoogleSpreadsheetCell, GoogleSpreadsheetWorksheet} from "google-spreadsheet";
 import * as constants from "../constants";
 
 /**
@@ -52,6 +52,74 @@ export function passAndFailArray(userArray: { id: number; dailyMinutes: { date: 
   return [passArray, failArray];
 }
 
+export async function convertIDsToNames(doc: GoogleSpreadsheet, usersArray: {id: number, dailyMinutes: {date: string, minutes: number}[]}[]) {
+  // the variable sheet will have a student first name, student last name, and student ID field
+  // write a loop that creates a new array that replaces the student ID with the student first name and student last name
+
+  // the returned object will be in the form of {firstName: string, lastName: string, dailyMinutes: { date: string; minutes: number; }[];}
+
+  let returnedObject: {id:number, firstName: string, lastName: string, previousMinutes: number, dailyMinutes: { date: string; minutes: number; }[];}[] = [];
+
+  let variableSheet: GoogleSpreadsheetWorksheet = await doc.sheetsByIndex[2];
+  let rowCount: number;
+  await variableSheet.getRows().then(async (rows) => {
+  rowCount = rows.length +1;
+  let studentIDColumn: GoogleSpreadsheetCell[] = [];
+  let studentFirstNameColumn: GoogleSpreadsheetCell[] = [];
+  let studentLastNameColumn: GoogleSpreadsheetCell[] = [];
+  let studentPreviousMinutesColumn: GoogleSpreadsheetCell[] = [];
+  
+  await variableSheet.loadCells(`A1:D${rowCount}`).then(() => {
+
+    for (let i = 1; i < rowCount; i++) {
+      console.log(i);
+      
+      studentIDColumn.push(variableSheet.getCell(i, 0));
+    }
+
+    for (let i = 1; i < rowCount; i++) {
+      studentFirstNameColumn.push(variableSheet.getCell(i, 1));
+    }
+
+    for (let i = 1; i < rowCount; i++) {
+      studentLastNameColumn.push(variableSheet.getCell(i, 2));
+    }
+
+    for (let i = 1; i < rowCount; i++) {
+      studentPreviousMinutesColumn.push(variableSheet.getCell(i, 3));
+    }
+  });
+
+  for (let i = 0; i < usersArray.length; i++) {
+
+    let user = usersArray[i];
+
+    let studentID = user.id;
+    let studentFirstName: string;
+    let studentLastName: string;
+    let studentPreviousMinutes: number;
+    console.log(studentID);
+    try {
+      studentFirstName = studentFirstNameColumn[studentIDColumn.indexOf(studentIDColumn.filter((cell) => cell.value === studentID)[0])].value.toString();
+      studentLastName = studentLastNameColumn[studentIDColumn.indexOf(studentIDColumn.filter((cell) => cell.value === studentID)[0])].value.toString();
+      studentPreviousMinutes = parseInt(studentPreviousMinutesColumn[studentIDColumn.indexOf(studentIDColumn.filter((cell) => cell.value === studentID)[0])].value.toString());
+    } catch (error) {
+      studentFirstName = studentID.toString();
+      studentLastName = studentID.toString();
+      studentPreviousMinutes = 0;
+    }
+    let student = {id: studentID, firstName: studentFirstName, lastName: studentLastName, previousMinutes: studentPreviousMinutes, dailyMinutes: user.dailyMinutes};
+    console.log("student begin");
+    console.log(student);
+    console.log("student end");
+    
+    returnedObject.push(student);
+  }
+});
+return returnedObject;
+}
+
+
 /**
  * Extracts all unique dates from the dailyMinutes arrays of each user
  * @param {Array} userArray - An array of user objects
@@ -74,8 +142,22 @@ export function getDates(userArray: { id: number; dailyMinutes: { date: string; 
       }
     }
   }
-  dates.sort();
+  dates.sort(function(a,b){
+    // Turn your strings into dates, and then subtract them
+    // to get a value that is either negative, positive, or zero.
+    const aList: string[] = a.split("-");
+    const bList: string[] = b.split("-");
+    return new Date(parseInt(bList[0]), parseInt(bList[1]), parseInt(bList[2])).getTime() - 
+      new Date(parseInt(aList[0]), parseInt(aList[1]), parseInt(aList[2])).getTime();
+  });
+  // dates.sort();
   dates = [...new Set(dates)];
+  dates.forEach((date, index) => {
+    const x = date.split("-");
+    dates[index] = `${parseInt(x[0])}-${parseInt(x[1])}-${parseInt(x[2])}`;
+    // replace(/^0+/, '');
+  });
+  dates.reverse();
   return dates;
 }
 
@@ -95,11 +177,16 @@ export async function mapIdToName(doc: GoogleSpreadsheet) {
     title: "Variables",
     gridProperties: {
       rowCount: 100,
-      columnCount: 3,
+      columnCount: 4,
       frozenRowCount: 1
     }
   });
-  await variableSheet.setHeaderRow(["Student ID", "Student Name", "Previous Min"]);
+  await variableSheet.setHeaderRow([
+    "Student ID",
+    "First Name",
+    "Last Name",
+    "Previous Min"
+  ]);
 
   const rows = await variableSheet.getRows();
   if(rows.length > 0) {
@@ -132,7 +219,7 @@ export async function mapIdToName(doc: GoogleSpreadsheet) {
  * @param {Array} dates - An array of dates
  * @returns {Promise} - A promise that resolves when the data propagation is complete
  */
-export async function propagateSheet(sheet: GoogleSpreadsheetWorksheet, userArray: { id: number; dailyMinutes: { date: string; minutes: number; }[]; }[], dailyMinutes: {id: number, dailyMinutes: {date: string, minutes: number}[]}[], dates: string[]) {
+export async function propagateSheet(sheet: GoogleSpreadsheetWorksheet, userArray: { id:number, firstName: string; lastName: string; previousMinutes: number; dailyMinutes: { date: string; minutes: number; }[]; }[], dailyMinutes: {id: number, dailyMinutes: {date: string, minutes: number}[]}[], dates: string[]) {
   await sheet.clearRows();
 
   let userDates: string[] = [];
@@ -147,6 +234,8 @@ export async function propagateSheet(sheet: GoogleSpreadsheetWorksheet, userArra
       for (const date in element.dailyMinutes) {
         if (Object.prototype.hasOwnProperty.call(element.dailyMinutes, date)) {
           // for loop to truncate all minutes in dailyMinutes to whole numbers
+          console.log(element.dailyMinutes[date]);
+
           for(const minute in element.dailyMinutes[date]) {
             if (Object.prototype.hasOwnProperty.call(element.dailyMinutes[date], minute)) {
               element.dailyMinutes[date].minutes = Math.trunc(element.dailyMinutes[date].minutes);
@@ -162,8 +251,11 @@ export async function propagateSheet(sheet: GoogleSpreadsheetWorksheet, userArra
       const totalTime = getTotalUserMinutes(dailyMinutes.find(a => a.id === element.id)!).totalMinutes
 
       let row: any = {
-        "ID": element.id.toString(),
-        "Total Time (m)": totalTime.toString()
+        "First Name": element.firstName,
+        "Last Name": element.lastName,
+        "Previous Minutes": element.previousMinutes.toString(),
+        // "ID": element.id.toString(),
+        "Total Time (m)": (totalTime + element.previousMinutes).toString()
       }
         for (const date in userDates) {
           if (Object.prototype.hasOwnProperty.call(userDates, date)) {
