@@ -38,6 +38,7 @@ export function passAndFailArray(userArray: { id: number; dailyMinutes: { date: 
     // check users total minutes of all time against the pass/fail threshold
       const element = userArray[user];
       const totalMinutes = element.dailyMinutes.reduce((a, b) => a + b.minutes, 0);
+      // const previousMin = element.id
       if (totalMinutes >= (constants.MINIMUM_ATTENDANCE_TIME_MS / 1000 / 60)) {
         passArray.push(element);
       } else {
