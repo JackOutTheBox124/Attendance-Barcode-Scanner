@@ -1,6 +1,6 @@
 import { Student } from "../models/database";
 
-export async function timestampsToDailyMinutes(studentID: number) {
+async function timestampsToDailyMinutes(studentID: number) {
   const student = await Student.findOne({ where: { id: studentID } });
   let tempArr = [];
   let dailyMinutes: {date: string, minutes: number}[] = [];

@@ -2,6 +2,72 @@ import {GoogleSpreadsheet, GoogleSpreadsheetCell, GoogleSpreadsheetWorksheet} fr
 import * as constants from "../constants";
 
 /**
+ * Initializes the given Google Spreadsheet document.
+ * @param {string} sheetID - The ID of the Google Spreadsheet document to initialize.
+ * @returns {Promise<GoogleSpreadsheet>} A promise that resolves with the initialized Google Spreadsheet document.
+ */
+export async function initializeDoc(sheetID: string) {
+  // Create a new Google Spreadsheet instance with the given sheet ID.
+  const doc = new GoogleSpreadsheet(sheetID);
+  // Use the service account credentials from constants to authenticate the connection.
+  await doc.useServiceAccountAuth({
+    client_email: constants.CLIENT_EMAIL,
+    private_key: constants.PRIVATE_KEY,
+  });
+
+  // Load the information for the document.
+  await doc.loadInfo();
+  // If the document title is not "Attendance Sheets", update it to that value.
+  if (doc.title !== "Attendance Sheets") {
+    await doc.updateProperties({ title: "Attendance Sheets" });
+  }
+  // Return the initialized document.
+  return doc;
+}
+
+/**
+ * Initializes the given sheet in the given Google Spreadsheet document.
+ * @param {GoogleSpreadsheet} doc - The Google Spreadsheet document to add the sheet to.
+ * @param {string} sheetName - The name of the sheet to initialize.
+ * @param {string[]} [headers=[]] - An array of header values to include in the sheet.
+ * @param {number} [frozenRows=0] - The number of rows to freeze in the sheet.
+ * @param {number} [columns=1] - The number of columns in the sheet.
+ * @param {boolean} [timestamp=false] - A boolean indicating whether to include a timestamp header in the sheet.
+ * @param {number} [index=0] - The index of the sheet in the document.
+ * @returns {Promise<GoogleSpreadsheetWorksheet>} A promise that resolves with the initialized sheet.
+ */
+export async function initializeSheet(doc: GoogleSpreadsheet, sheetName: string, headers: string[] = [], frozenRows = 0, columns = 1, timestamp = false, index = 0) {
+  // Get the current date and time
+  const now = new Date(Date.now());
+  // If the timestamp flag is set to true, add the current date and time as a header
+  if (timestamp) {
+    headers.push(`${now.toLocaleString("en-us", {timeZone: "EST"})}`);
+  }
+  // If there is no sheet at the given index in the document, add a new sheet with the given name.
+  if (!doc.sheetsByIndex[index]) {
+    await doc.addSheet({title: sheetName});
+  }
+
+  // Get the sheet at the given index and clear its contents.
+  const sheet = doc.sheetsByIndex[index];
+  await sheet.clear();
+
+  // Set the sheet's properties: the title, number of rows and columns, and number of frozen rows.
+  await sheet.updateProperties({
+    title: sheetName,
+    gridProperties: {
+      rowCount: 2,
+      columnCount: columns,
+      frozenRowCount: frozenRows
+    }
+  });
+  // Set the sheet's headers based on the headers function parameter.
+  await sheet.setHeaderRow(headers);
+  // Return the initialized sheet as a promise.
+  return sheet;
+}
+
+/**
  * Calculates the total number of minutes for a user
  * @param {Object} user - The user object
  * @param {number} user.id - The ID of the user
@@ -11,18 +77,21 @@ import * as constants from "../constants";
  * @returns {Object} - An object containing the user ID and total number of minutes
  */
 export function getTotalUserMinutes(user: {id: number; dailyMinutes: { date: string; minutes: number; }[];}) {
-    let totalMinutes = 0;
-    for (let i = 0; i < user.dailyMinutes.length; i++) {
-        totalMinutes += user.dailyMinutes[i].minutes;
-    }
-    return {
-      user: user.id,
-      totalMinutes: Math.trunc(totalMinutes)
-    }
+  // Initialize a variable to keep track of the total number of minutes.
+  let totalMinutes = 0;
+  // Loop through each day in the user's attendance record and add up the number of minutes.
+  for (let i = 0; i < user.dailyMinutes.length; i++) {
+    totalMinutes += user.dailyMinutes[i].minutes;
+  }
+  // Return an object containing the user's ID and the total number of minutes rounded down to the nearest whole number.
+  return {
+    user: user.id,
+    totalMinutes: Math.trunc(totalMinutes)
+  }
 }
 
 /**
- * Divides an array of users into two arrays based on whether they have passed or failed
+ * Divides an array of users into two arrays based on whether they have passed or failed the attendance threshold
  * @param {Array} userArray - An array of user objects
  * @param {number} userArray[].id - The ID of the user
  * @param {Array} userArray[].dailyMinutes - An array of objects with a date and number of minutes for each day
@@ -30,15 +99,22 @@ export function getTotalUserMinutes(user: {id: number; dailyMinutes: { date: str
  * @param {number} userArray[].dailyMinutes[].minutes - The number of minutes of attendance
  * @returns {Array} - An array containing two arrays, the first for users that have passed and the second for users that have failed
  */
-export function passAndFailArray(userArray: { id: number; dailyMinutes: { date: string; minutes: number; }[]; }[]) {
+export async function passAndFailArray(doc: GoogleSpreadsheet, userArray: { id: number; dailyMinutes: { date: string; minutes: number; }[]; }[]) {
   let passArray: {id: number, dailyMinutes: {date: string, minutes: number}[]}[] = [];
   let failArray: {id: number, dailyMinutes: {date: string, minutes: number}[]}[] = [];
   for (const user in userArray) {
     if (Object.prototype.hasOwnProperty.call(userArray, user)) {
-    // check users total minutes of all time against the pass/fail threshold
       const element = userArray[user];
+      let variableSheet: GoogleSpreadsheetWorksheet = await doc.sheetsByIndex[2];
+      let variableSheetRows = await variableSheet.getRows().then((rows) => {
+        console.log(rows[0]);
+        
+        // rows[0].forEach((row: string | number, i: string | number) => previousMinObj[row] = rows[3][i]);
+        // // let previousMinObj = Object.fromEntries(rows.map((_, i) => [rows[0][i], rows[3][i]]));
+        // console.log(previousMinObj)
+        // previousMin = rows[4].
+      })
       const totalMinutes = element.dailyMinutes.reduce((a, b) => a + b.minutes, 0);
-      // const previousMin = element.id
       if (totalMinutes >= (constants.MINIMUM_ATTENDANCE_TIME_MS / 1000 / 60)) {
         passArray.push(element);
       } else {
@@ -54,17 +130,12 @@ export function passAndFailArray(userArray: { id: number; dailyMinutes: { date: 
 }
 
 export async function convertIDsToNames(doc: GoogleSpreadsheet, usersArray: {id: number, dailyMinutes: {date: string, minutes: number}[]}[]) {
-  // the variable sheet will have a student first name, student last name, and student ID field
-  // write a loop that creates a new array that replaces the student ID with the student first name and student last name
-
-  // the returned object will be in the form of {firstName: string, lastName: string, dailyMinutes: { date: string; minutes: number; }[];}
-
   let returnedObject: {id:number, firstName: string, lastName: string, previousMinutes: number, dailyMinutes: { date: string; minutes: number; }[];}[] = [];
 
   let variableSheet: GoogleSpreadsheetWorksheet = await doc.sheetsByIndex[2];
   let rowCount: number;
   await variableSheet.getRows().then(async (rows) => {
-  rowCount = rows.length +1;
+  rowCount = rows.length + 1;
   let studentIDColumn: GoogleSpreadsheetCell[] = [];
   let studentFirstNameColumn: GoogleSpreadsheetCell[] = [];
   let studentLastNameColumn: GoogleSpreadsheetCell[] = [];
@@ -143,20 +214,16 @@ export function getDates(userArray: { id: number; dailyMinutes: { date: string; 
       }
     }
   }
-  dates.sort(function(a,b){
-    // Turn your strings into dates, and then subtract them
-    // to get a value that is either negative, positive, or zero.
+  dates.sort(function(a,b) {
     const aList: string[] = a.split("-");
     const bList: string[] = b.split("-");
     return new Date(parseInt(bList[0]), parseInt(bList[1]), parseInt(bList[2])).getTime() - 
       new Date(parseInt(aList[0]), parseInt(aList[1]), parseInt(aList[2])).getTime();
   });
-  // dates.sort();
   dates = [...new Set(dates)];
   dates.forEach((date, index) => {
     const x = date.split("-");
     dates[index] = `${parseInt(x[0])}-${parseInt(x[1])}-${parseInt(x[2])}`;
-    // replace(/^0+/, '');
   });
   dates.reverse();
   return dates;
@@ -255,7 +322,6 @@ export async function propagateSheet(sheet: GoogleSpreadsheetWorksheet, userArra
         "First Name": element.firstName,
         "Last Name": element.lastName,
         "Previous Minutes": element.previousMinutes.toString(),
-        // "ID": element.id.toString(),
         "Total Time (m)": (totalTime + element.previousMinutes).toString()
       }
         for (const date in userDates) {

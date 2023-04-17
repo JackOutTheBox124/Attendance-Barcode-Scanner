@@ -5,7 +5,7 @@ import * as constants from "../constants";
  * Verifies if the student's current timestamp is {@link constants.INDIVIDUAL_LOGGING_COOLDOWN_MS INDIVIDUAL_LOGGING_COOLDOWN_MS } greater than the current log in time
  * If the user does not yet have an existing instance in the MySQL database, a new instance is created
  * @param studentID 9 digit student ID
- * @returns true if the timestamp is valid, false otherwise
+ * @returns 1 if logged in, 0 if logged out, -1 otherwise
  */
 export async function timeStampValid(studentID: number) {
   const student = await Student.findOne({ where: { id: studentID } });
@@ -14,19 +14,19 @@ export async function timeStampValid(studentID: number) {
       id: studentID,
       lastLogin: 0,
     });
-    return true;
+    return 1;
   }
   else if (student.lastLogin === 0) {
-    return true;      
+    return 1;
   }
   else if (student.lastLogin !== 0) {
     const lastLogin: number = student!.lastLogin;
     const date: number = Date.now();
     if (Math.abs(date - lastLogin) > constants.INDIVIDUAL_LOGGING_COOLDOWN_MS) {
-      return true;
+      return lastLogin <= constants.MAX_LOGIN_TIME_MS ? 0 : 1;
     }
   }
-  return false;
+  return -1;
 }
 
 /**
