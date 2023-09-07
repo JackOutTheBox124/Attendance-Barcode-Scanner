@@ -23,15 +23,17 @@ reader.on("line", async (input: string) => {
   const studentID: number = Number.parseInt(input)
   // Checks if the studentID 
   const isTimestampValid = await timeStampValid(studentID)
+  console.log(isTimestampValid);
+  
   switch (isTimestampValid) {
     case 1:
       console.log(colors.green(input + " has logged ") + colors.blue("in"));
       break;
     case 0:
-      console.log(colors.green(input + "has logged ") + colors.red("out"));
+      console.log(colors.green(input + " has logged ") + colors.red("out"));
       break;
     default:
-      return console.log(colors.red(input + " in invalid!"))
+      return console.log(colors.red(input + " is invalid!"))
   }
 
   // If the timestamp is valid, the updateTimestamp function is ran.

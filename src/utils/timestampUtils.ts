@@ -9,6 +9,8 @@ import * as constants from "../constants";
  */
 export async function timeStampValid(studentID: number) {
   const student = await Student.findOne({ where: { id: studentID } });
+  const date: number = Date.now();
+
   if (!student) {
     await Student.create({
       id: studentID,
@@ -19,13 +21,16 @@ export async function timeStampValid(studentID: number) {
   else if (student.lastLogin === 0) {
     return 1;
   }
-  else if (student.lastLogin !== 0) {
-    const lastLogin: number = student!.lastLogin;
-    const date: number = Date.now();
-    if (Math.abs(date - lastLogin) > constants.INDIVIDUAL_LOGGING_COOLDOWN_MS) {
-      return lastLogin <= constants.MAX_LOGIN_TIME_MS ? 0 : 1;
-    }
+  const timeSinceLastLogin = date - student.lastLogin;
+
+  if (timeSinceLastLogin < constants.MAX_LOGIN_TIME_MS) {
+    return 0; // User is already logged in but for less than MAX_LOGIN_TIME_MS
   }
+
+  if (Math.abs(timeSinceLastLogin) > constants.INDIVIDUAL_LOGGING_COOLDOWN_MS) {
+    return 1;
+  }
+
   return -1;
 }
 
